@@ -2,7 +2,7 @@ trigger:
   branches:
     include:
       - master
-      - develop
+#      - develop
 
 stages:
   - stage: validations_stage
