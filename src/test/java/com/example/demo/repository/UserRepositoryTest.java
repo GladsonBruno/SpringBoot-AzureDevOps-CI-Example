@@ -21,6 +21,15 @@ class UserRepositoryTest {
 		
 		Assertions.assertNotNull(user);
 		
+		UserVO expectedUser = new UserVO();
+		expectedUser.setId(1);
+		expectedUser.setUsername("Usuário 1");
+		expectedUser.setEmail("usuario-1@gmail.com");
+		
+		Assertions.assertEquals(expectedUser.getId(), user.getId());
+		Assertions.assertEquals(expectedUser.getUsername(), user.getUsername());
+		Assertions.assertEquals(expectedUser.getEmail(), user.getEmail());
+		
 	}
 	
 	@Test
