@@ -184,7 +184,7 @@ stages:
               tags: $(APPLICATION_VERSION)
 
           - task: Docker@2
-            displayName: '[DockerBuild] Docker Push version ${{parameters.APPLICATION_VERSION}}'
+            displayName: '[DockerBuild] Docker Push version $(APPLICATION_VERSION)'
             inputs:
               containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
               repository: $(IMAGE_NAME)
