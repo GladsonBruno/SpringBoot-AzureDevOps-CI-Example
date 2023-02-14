@@ -26,88 +26,9 @@ stages:
     variables:
       APPLICATION_VERSION: 0.0.1
     jobs: 
-      - job: build_job
-        displayName: "Build"
-        pool:
-          vmImage: ubuntu-20.04
-          demands:
-            - java
-        steps:
-          - checkout: self
-            fetchDepth: null
-
-          - task: JavaToolInstaller@0
-            displayName: "[Setup] Use JDK 17"
-            inputs:
-              versionSpec: 17
-              jdkArchitectureOption: 'x64'
-              jdkSourceOption: 'PreInstalled'
-
-          - script: |
-              sudo apt-get install xmlstarlet
-            displayName: "[Setup] Install Package xmlstarlet"
-
-          - script: |
-              xmlstarlet edit -L --update '/_:project/_:version' --value '$(APPLICATION_VERSION)' $(POM_FILE_LOCATION)
-            displayName: "[Setup] Update project version"
-
-          - task: Maven@3
-            displayName: '[Build] Maven Package'
-            inputs:
-              mavenPomFile: 'pom.xml'
-              goals: 'package -Dmaven.test.skip=true'
-              publishJUnitResults: false
-              javaHomeOption: 'JDKVersion'
-              mavenVersionOption: 'Default'
-              mavenAuthenticateFeed: false
-              effectivePomSkip: false
-              sonarQubeRunAnalysis: false
-
-          - task: Docker@2
-            displayName: 'Docker Login'
-            inputs:
-              containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              command: 'login'
-
-          - task: Docker@2
-            displayName: '[DockerBuild] Docker Build version $(APPLICATION_VERSION)'
-            inputs:
-              command: build
-              containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              repository: $(CI_REGISTRY)/$(IMAGE_NAME)
-              buildContext: $(DOCKER_BUILD_CONTEXT_FOLDER)
-              Dockerfile: $(DOCKERFILE_PATH)
-              tags: $(APPLICATION_VERSION)
-
-          - task: Docker@2
-            displayName: '[DockerBuild] Docker Push version $(APPLICATION_VERSION)'
-            inputs:
-              containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              repository: $(CI_REGISTRY)/$(IMAGE_NAME)
-              command: 'push'
-              tags: $(APPLICATION_VERSION)
-
-          - script: |
-              wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
-              tar -xf trivy_0.37.0_Linux-64bit.tar.gz
-              mv trivy $(Agent.TempDirectory)/trivy_scanner
-              chmod a+x $(Agent.TempDirectory)/trivy_scanner
-            displayName: 'Download Trivy'
-
-          - script: |
-              $(Agent.TempDirectory)/trivy_scanner/trivy \
-                -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
-            displayName: '[Trivy] Scan Container Image With Trivy'
-
-          - task: Docker@2
-            displayName: 'Docker Logout'
-            inputs:
-              containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              command: 'logout'
-
       - job: scan_docker_image_job
         displayName: "Scan Docker Image Job"
-        dependsOn: [ "build_job" ]
+#        dependsOn: [ "build_job" ]
         pool:
           vmImage: ubuntu-20.04
           demands:
