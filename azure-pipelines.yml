@@ -99,7 +99,7 @@ stages:
             displayName: 'Publish Junit Test Results'
             inputs:
               testResultsFormat: 'JUnit'
-              testResultsFiles: '**/junit-report.xml'
+              testResultsFiles: '$(Agent.TempDirectory)/trivy-image-junit-report.xml'
               mergeTestResults: true
               failTaskOnFailedTests: false
               testRunTitle: 'Trivy Container Vulnerabilities'
