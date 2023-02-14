@@ -132,7 +132,6 @@ stages:
     jobs: 
       - job: build_job
         displayName: "Build"
-        dependsOn: ${{parameters.DEPENDS_ON}}
         pool:
           vmImage: ubuntu-20.04
           demands:
