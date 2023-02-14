@@ -2,7 +2,6 @@ package com.example.demo.repository;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.example.demo.vo.UserVO;
 
@@ -11,9 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UserRepository {
 
-	private ArrayList<UserVO> generateUsers() {
+	private List<UserVO> generateUsers() {
 		
-		ArrayList<UserVO> users = new ArrayList<UserVO>();
+		List<UserVO> users = new ArrayList<>();
 		
 		for(int i = 0; i < 10; i++) {
 			
@@ -31,23 +30,22 @@ public class UserRepository {
 		
 	}
 	
-	public ArrayList<UserVO> getAll() {
+	public List<UserVO> getAll() {
 		
-		ArrayList<UserVO> users = this.generateUsers();
-		return users;
+		return this.generateUsers();
 		
 	}
 	
 	public UserVO getById(int id) {
 		
-		ArrayList<UserVO> users = this.generateUsers();
+		List<UserVO> users = this.generateUsers();
 		
-		List<UserVO> result = users.stream().filter(user -> user.getId() == id).collect(Collectors.toList());
+		List<UserVO> result = users.stream().filter(user -> user.getId() == id).toList();
 		
-		if (result.size() > 0) {
-			return result.get(0);
-		} else {
+		if (result.isEmpty()) {
 			return null;
+		} else {
+			return result.get(0);
 		}
 		
 	}

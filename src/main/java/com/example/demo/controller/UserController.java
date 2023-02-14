@@ -1,8 +1,6 @@
 package com.example.demo.controller;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +17,11 @@ public class UserController {
 	UserRepository userRepository = new UserRepository();
 	
 	@GetMapping(path = "/users")
-	public ResponseEntity<ArrayList<UserVO>> getAll() {
+	public ResponseEntity<List<UserVO>> getAll() {
 		
-		ArrayList<UserVO> users = this.userRepository.getAll();
+		List<UserVO> users = this.userRepository.getAll();
 		
-		return new ResponseEntity<ArrayList<UserVO>>(users, HttpStatus.OK);
+		return new ResponseEntity<>(users, HttpStatus.OK);
 		
 	}
 	
@@ -34,7 +32,7 @@ public class UserController {
 		
 		if (user != null) {
 			
-			return new ResponseEntity<UserVO>(user, HttpStatus.OK);
+			return new ResponseEntity<>(user, HttpStatus.OK);
 			
 		} else {
 			

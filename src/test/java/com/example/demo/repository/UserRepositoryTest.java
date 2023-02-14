@@ -1,6 +1,7 @@
 package com.example.demo.repository;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -9,12 +10,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import com.example.demo.vo.UserVO;
 
 @SpringBootTest
-public class UserRepositoryTest {
+class UserRepositoryTest {
 
 	UserRepository userRepository = new UserRepository();
 	
 	@Test
-	public void testIfUserOneExists() {
+	void testIfUserOneExists() {
 		
 		UserVO user = this.userRepository.getById(1);
 		
@@ -23,7 +24,7 @@ public class UserRepositoryTest {
 	}
 	
 	@Test
-	public void testIfUserElevenNotExists() {
+	void testIfUserElevenNotExists() {
 		
 		UserVO user = this.userRepository.getById(11);
 		
@@ -32,9 +33,9 @@ public class UserRepositoryTest {
 	}
 	
 	@Test
-	public void testGetAllUsers() {
+	void testGetAllUsers() {
 		
-		ArrayList<UserVO> users = this.userRepository.getAll();
+		List<UserVO> users = this.userRepository.getAll();
 		
 		Assertions.assertEquals(10, users.size());
 		
