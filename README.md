@@ -7,5 +7,6 @@ Estará contemplado:
  * Scan SonarCloud - OK
  * Teste unitário - OK
  * Code Coverage - OK
- * Build de container
- * Teste de container
+ * Build de container - OK
+ * Teste de container - OK
+ * Pipeline templatizada

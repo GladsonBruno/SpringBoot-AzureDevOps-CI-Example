@@ -191,18 +191,6 @@ stages:
               command: 'push'
               tags: $(APPLICATION_VERSION)
 
-          - script: |
-              wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
-              tar -xf trivy_0.37.0_Linux-64bit.tar.gz
-              mv trivy $(Agent.TempDirectory)/trivy_scanner
-              chmod a+x $(Agent.TempDirectory)/trivy_scanner/trivy
-            displayName: 'Download Trivy'
-
-          - script: |
-              $(Agent.TempDirectory)/trivy_scanner/trivy \
-                -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
-            displayName: '[Trivy] Scan Container Image With Trivy'
-
           - task: Docker@2
             displayName: 'Docker Logout'
             inputs:
