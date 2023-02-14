@@ -6,6 +6,7 @@ resources:
   - repository: templates
     type: github
     name: GladsonBruno/azure-template-pipelines
+    endpoint: GladsonBruno
     ref: 'refs/heads/develop'
 
 extends:
