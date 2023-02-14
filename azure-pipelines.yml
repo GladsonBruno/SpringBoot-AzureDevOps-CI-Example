@@ -45,8 +45,8 @@ stages:
 
           - script: |
               mkdir trivy_scanner
-              wget https://github.com/aquasecurity/trivy/releases/download/v0.28.1/trivy_0.28.1_Linux-64bit.tar.gz
-              tar -xf trivy_0.28.1_Linux-64bit.tar.gz
+              wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
+              tar -xf trivy_0.37.0_Linux-64bit.tar.gz
               mv trivy trivy_scanner
               chmod a+x trivy_scanner/trivy
             displayName: 'Download Trivy'
@@ -81,7 +81,7 @@ stages:
             displayName: '[Trivy] Scan Container Image With Trivy'
 
           - script: |
-              $(Agent.TempDirectory)/trivy_scanner/trivy \
+              $(Agent.TempDirectory)/trivy_scanner/trivy image \
                 --exit-code 0 \
                 --format template \
                 --output $(Agent.TempDirectory)/trivy-image-junit-report.xml \
