@@ -178,7 +178,7 @@ stages:
             inputs:
               command: build
               containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              repository: $(IMAGE_NAME)
+              repository: $(CI_REGISTRY)/$(IMAGE_NAME)
               buildContext: $(DOCKER_BUILD_CONTEXT_FOLDER)
               Dockerfile: $(DOCKERFILE_PATH)
               tags: $(APPLICATION_VERSION)
