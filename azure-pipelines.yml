@@ -46,9 +46,9 @@ stages:
             displayName: "[Setup] Export GitVersion"
 
           - task: JavaToolInstaller@0
-            displayName: "[Setup] Use JDK $(JAVA_JDK_VERSION)"
+            displayName: "[Setup] Use JDK 17"
             inputs:
-              versionSpec: $(JAVA_JDK_VERSION)
+              versionSpec: 17
               jdkArchitectureOption: 'x64'
               jdkSourceOption: 'PreInstalled'
 
