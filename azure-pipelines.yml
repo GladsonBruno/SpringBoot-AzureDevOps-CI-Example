@@ -235,8 +235,8 @@ stages:
 
           - ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
             - powershell: |
-                New-Item -Path ${{ parameters.IMAGE_VULNERABILITIES_REPORT_TEMPLATE_PATH }} -ItemType File -Force
-                Set-Content ${{ parameters.IMAGE_VULNERABILITIES_REPORT_TEMPLATE_PATH }} '<?xml version="1.0" ?>
+                New-Item -Path 'templates\junit-container-vulnerabilities-template.tpl' -ItemType File -Force
+                Set-Content 'templates\junit-container-vulnerabilities-template.tpl' '<?xml version="1.0" ?>
                         <testsuites>
                         {{- range . -}}
                         {{- $failures := len .Vulnerabilities }}
