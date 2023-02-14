@@ -44,11 +44,13 @@ stages:
               command: 'login'
 
           - script: |
+              mkdir trivy_scanner
               wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
               tar -xf trivy_0.37.0_Linux-64bit.tar.gz
-              mv trivy $(Agent.TempDirectory)/trivy_scanner
-              chmod a+x $(Agent.TempDirectory)/trivy_scanner
+              mv trivy trivy_scanner
+              chmod a+x trivy_scanner/trivy
             displayName: 'Download Trivy'
+            workingDirectory: $(Agent.TempDirectory)
 
           - ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
             - powershell: |
