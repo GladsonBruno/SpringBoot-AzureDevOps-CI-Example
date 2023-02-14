@@ -2,7 +2,7 @@ trigger:
   branches:
     include:
       - master
-#      - develop
+      - develop
 
 variables:
   CI_REGISTRY: gladsonbruno
@@ -13,93 +13,276 @@ variables:
   POM_FILE_LOCATION: $(Build.SourcesDirectory)/pom.xml
   SONAR_CLOUD_SERVICE_CONNECTION_NAME: 'SonarCloud'
 
-stages:
-  - stage: build_stage
-    displayName: "Build"
-#    dependsOn: [ "validations_stage" ]
-    condition: or(
-      eq(variables['Build.SourceBranchName'], 'master'),
-      eq(variables['Build.SourceBranchName'], 'develop'),
-      contains(variables['Build.SourceBranch'], 'refs/heads/release/'),
-      contains(variables['Build.SourceBranch'], 'refs/heads/hotfix/')
-      )
-    variables:
-      APPLICATION_VERSION: 0.0.1
-    jobs: 
-      - job: scan_docker_image_job
-        displayName: "Scan Docker Image Job"
-#        dependsOn: [ "build_job" ]
-        pool:
-          vmImage: ubuntu-20.04
-          demands:
-            - java
-        steps:
-          - checkout: self
-            fetchDepth: null
+  stages:
+    - stage: validations_stage
+      displayName: "Validations"
+      condition: | 
+        or(
+          eq(variables['Build.Reason'], 'PullRequest'),
+          and(
+            ne(variables['Build.Reason'], 'PullRequest'),
+            or(
+              eq(variables['Build.SourceBranchName'], 'master'),
+              eq(variables['Build.SourceBranchName'], 'develop')
+            )
+          )
+        )
+      jobs:
+        - job: unit_test_and_sonar_cloud_job
+          displayName: "Unit Tests and SonarCloud"
+          pool:
+            vmImage: ubuntu-20.04
+            demands:
+              - java
+          steps:
+            - checkout: self
+              fetchDepth: null
+            
+            - task: gitversion/setup@0
+              displayName: '[Setup] Install GitVersion'
+              inputs:
+                versionSpec: '5.8.x'
+      
+            - task: gitversion/execute@0
+              displayName: '[Setup] Determine GitVersion'
+      
+            - script: |
+                echo 'Exporting VERSION variable to another stages'
+                VERSION_VALUE=$(GitVersion.SemVer)
+                echo "The current version is $VERSION_VALUE"
+                echo "##vso[task.setvariable variable=VERSION;isOutput=true]$VERSION_VALUE";
+              name: gitversion
+              displayName: "[Setup] Export GitVersion"
+      
+            - task: JavaToolInstaller@0
+              displayName: "[Setup] Use JDK 17"
+              inputs:
+                versionSpec: 17
+                jdkArchitectureOption: 'x64'
+                jdkSourceOption: 'PreInstalled'
+      
+            - script: |
+                sudo apt-get install xmlstarlet
+              displayName: "[Setup] Install Package xmlstarlet"
+      
+            - script: |
+                xmlstarlet edit -L --update '/_:project/_:version' --value '$(GitVersion.SemVer)' $(POM_FILE_LOCATION)
+              displayName: "[Setup] Update project version"
+      
+            - task: SonarCloudPrepare@1
+              displayName: "[SonarCloud] Prepare"
+              inputs:
+                SonarCloud: $(SONAR_CLOUD_SERVICE_CONNECTION_NAME)
+                organization: portifoliogladson
+                scannerMode: Other
+                extraProperties: |
+                 # Additional properties that will be passed to the scanner,
+                 # Put one key=value per line, example:
+                 sonar.inclusions=**/*.java
+                 sonar.exclusions=src/test/*.java,src/main/resources/application.properties
+                 sonar.projectKey=portifolio.springboot-ci-example
+                 sonar.projectName=SpringBootCIExample
+                 sonar.coverage.jacoco.xmlReportPaths=**/jacoco.xml
+      
+            - task: Maven@3
+              displayName: "[Test] Maven Test"
+              inputs:
+                mavenPomFile: 'pom.xml'
+                publishJUnitResults: true
+                testResultsFiles: '**/surefire-reports/TEST-*.xml'
+                codeCoverageToolOption: 'JaCoCo'
+                javaHomeOption: 'JDKVersion'
+                mavenVersionOption: 'Default'
+                mavenAuthenticateFeed: false
+                effectivePomSkip: false
+                sonarQubeRunAnalysis: false
+      
+            - task: Maven@3
+              displayName: "[SonarCloud] Build and Analyze"
+              inputs:
+                publishJUnitResults: false
+                javaHomeOption: 'JDKVersion'
+                mavenVersionOption: 'Default'
+                sonarQubeRunAnalysis: true
+                isJacocoCoverageReportXML: true
+                goals: 'package'
+      
+            - task: SonarCloudPublish@1
+              displayName: '[SonarCloud] Publish'
+              inputs:
+                pollingTimeoutSec: '60'
+      
+            - task: sonarcloud-buildbreaker@2
+              displayName: '[SonarCloud] Validate Quality Gate'
+              inputs:
+                SonarCloud: $(SONAR_CLOUD_SERVICE_CONNECTION_NAME)
+                organization: 'portifoliogladson'
+    
+    - stage: build_stage
+      displayName: "Build"
+      dependsOn: [ "validations_stage" ]
+      condition: or(
+        eq(variables['Build.SourceBranchName'], 'master'),
+        eq(variables['Build.SourceBranchName'], 'develop'),
+        contains(variables['Build.SourceBranch'], 'refs/heads/release/'),
+        contains(variables['Build.SourceBranch'], 'refs/heads/hotfix/')
+        )
+      variables:
+        APPLICATION_VERSION: $[ stageDependencies.validations_stage.unit_test_and_sonar_cloud_job.outputs['gitversion.VERSION'] ]
+      jobs: 
+        - job: build_job
+          displayName: "Build"
+          pool:
+            vmImage: ubuntu-20.04
+            demands:
+              - java
+          steps:
+            - checkout: self
+              fetchDepth: null
+  
+            - task: JavaToolInstaller@0
+              displayName: "[Setup] Use JDK 17"
+              inputs:
+                versionSpec: 17
+                jdkArchitectureOption: 'x64'
+                jdkSourceOption: 'PreInstalled'
+  
+            - script: |
+                sudo apt-get install xmlstarlet
+              displayName: "[Setup] Install Package xmlstarlet"
+  
+            - script: |
+                xmlstarlet edit -L --update '/_:project/_:version' --value '$(APPLICATION_VERSION)' $(POM_FILE_LOCATION)
+              displayName: "[Setup] Update project version"
+  
+            - task: Maven@3
+              displayName: '[Build] Maven Package'
+              inputs:
+                mavenPomFile: 'pom.xml'
+                goals: 'package -Dmaven.test.skip=true'
+                publishJUnitResults: false
+                javaHomeOption: 'JDKVersion'
+                mavenVersionOption: 'Default'
+                mavenAuthenticateFeed: false
+                effectivePomSkip: false
+                sonarQubeRunAnalysis: false
+  
+            - task: Docker@2
+              displayName: 'Docker Login'
+              inputs:
+                containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
+                command: 'login'
+  
+            - task: Docker@2
+              displayName: '[DockerBuild] Docker Build version $(APPLICATION_VERSION)'
+              inputs:
+                command: build
+                containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
+                repository: $(CI_REGISTRY)/$(IMAGE_NAME)
+                buildContext: $(DOCKER_BUILD_CONTEXT_FOLDER)
+                Dockerfile: $(DOCKERFILE_PATH)
+                tags: $(APPLICATION_VERSION)
+  
+            - task: Docker@2
+              displayName: '[DockerBuild] Docker Push version $(APPLICATION_VERSION)'
+              inputs:
+                containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
+                repository: $(CI_REGISTRY)/$(IMAGE_NAME)
+                command: 'push'
+                tags: $(APPLICATION_VERSION)
+  
+            - script: |
+                wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
+                tar -xf trivy_0.37.0_Linux-64bit.tar.gz
+                mv trivy $(Agent.TempDirectory)/trivy_scanner
+                chmod a+x $(Agent.TempDirectory)/trivy_scanner/trivy
+              displayName: 'Download Trivy'
+  
+            - script: |
+                $(Agent.TempDirectory)/trivy_scanner/trivy \
+                  -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
+              displayName: '[Trivy] Scan Container Image With Trivy'
+  
+            - task: Docker@2
+              displayName: 'Docker Logout'
+              inputs:
+                containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
+                command: 'logout'
 
-          - task: Docker@2
-            displayName: 'Docker Login'
-            inputs:
-              containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              command: 'login'
+        - job: scan_docker_image_job
+          displayName: "Scan Docker Image Job"
+          dependsOn: [ "build_job" ]
+          pool:
+            vmImage: ubuntu-20.04
+            demands:
+              - java
+          steps:
+            - checkout: self
+              fetchDepth: null
 
-          - script: |
-              mkdir trivy_scanner
-              wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
-              tar -xf trivy_0.37.0_Linux-64bit.tar.gz
-              mv trivy trivy_scanner
-              chmod a+x trivy_scanner/trivy
-            displayName: 'Download Trivy'
-            workingDirectory: $(Agent.TempDirectory)
+            - task: Docker@2
+              displayName: 'Docker Login'
+              inputs:
+                containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
+                command: 'login'
 
-          - ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
-            - powershell: |
-                New-Item -Path 'templates\junit-container-vulnerabilities-template.tpl' -ItemType File -Force
-                Set-Content 'templates\junit-container-vulnerabilities-template.tpl' '<?xml version="1.0" ?>
-                        <testsuites>
-                        {{- range . -}}
-                        {{- $failures := len .Vulnerabilities }}
-                            <testsuite tests="1" failures="{{ $failures }}" time="" name="{{  .Target }}">
-                            {{- if not (eq .Type "") }}
-                                <properties>
-                                    <property name="type" value="{{ .Type }}"></property>
-                                </properties>
-                                {{- end -}}
-                                {{ range .Vulnerabilities }}
-                                <testcase classname="{{ .PkgName }}-{{ .InstalledVersion }}" name="[{{ .Vulnerability.Severity }}] {{ .VulnerabilityID }}" time="">
-                                    <failure message={{escapeXML .Title | printf "%q" }} type="description">Vulnerability ID: {{escapeXML .VulnerabilityID | printf "%q" }}. &#xA;Package Name: {{escapeXML .PkgName | printf "%q" }}. &#xA;Version: {{escapeXML .InstalledVersion | printf "%q" }}. &#xA;Description: {{escapeXML .Description | printf "%q" }}. &#xA;Reference: {{escapeXML .PrimaryURL | printf "%q" }}. &#xA;</failure>
-                                </testcase>
-                            {{- end }}
-                            </testsuite>
-                        {{- end }}
-                        </testsuites>'
-              displayName: '[Trivy] Generating Container Vulnerabilities Junit Template'
+            - script: |
+                mkdir trivy_scanner
+                wget https://github.com/aquasecurity/trivy/releases/download/v0.37.0/trivy_0.37.0_Linux-64bit.tar.gz
+                tar -xf trivy_0.37.0_Linux-64bit.tar.gz
+                mv trivy trivy_scanner
+                chmod a+x trivy_scanner/trivy
+              displayName: 'Download Trivy'
+              workingDirectory: $(Agent.TempDirectory)
 
-          - script: |
-              cd $(Agent.TempDirectory)/trivy_scanner && ls -la
-              $(Agent.TempDirectory)/trivy_scanner/trivy -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
-            displayName: '[Trivy] Scan Container Image With Trivy'
+            - ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
+              - powershell: |
+                  New-Item -Path 'templates\junit-container-vulnerabilities-template.tpl' -ItemType File -Force
+                  Set-Content 'templates\junit-container-vulnerabilities-template.tpl' '<?xml version="1.0" ?>
+                          <testsuites>
+                          {{- range . -}}
+                          {{- $failures := len .Vulnerabilities }}
+                              <testsuite tests="1" failures="{{ $failures }}" time="" name="{{  .Target }}">
+                              {{- if not (eq .Type "") }}
+                                  <properties>
+                                      <property name="type" value="{{ .Type }}"></property>
+                                  </properties>
+                                  {{- end -}}
+                                  {{ range .Vulnerabilities }}
+                                  <testcase classname="{{ .PkgName }}-{{ .InstalledVersion }}" name="[{{ .Vulnerability.Severity }}] {{ .VulnerabilityID }}" time="">
+                                      <failure message={{escapeXML .Title | printf "%q" }} type="description">Vulnerability ID: {{escapeXML .VulnerabilityID | printf "%q" }}. &#xA;Package Name: {{escapeXML .PkgName | printf "%q" }}. &#xA;Version: {{escapeXML .InstalledVersion | printf "%q" }}. &#xA;Description: {{escapeXML .Description | printf "%q" }}. &#xA;Reference: {{escapeXML .PrimaryURL | printf "%q" }}. &#xA;</failure>
+                                  </testcase>
+                              {{- end }}
+                              </testsuite>
+                          {{- end }}
+                          </testsuites>'
+                displayName: '[Trivy] Generating Container Vulnerabilities Junit Template'
 
-          - script: |
-              $(Agent.TempDirectory)/trivy_scanner/trivy image \
-                --exit-code 0 \
-                --format template \
-                --output $(Agent.TempDirectory)/trivy-image-junit-report.xml \
-                --template "@templates/junit-container-vulnerabilities-template.tpl" \
-                $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
-            displayName: '[Trivy] Generating Container Scanning Junit Report'
+            - script: |
+                cd $(Agent.TempDirectory)/trivy_scanner && ls -la
+                $(Agent.TempDirectory)/trivy_scanner/trivy -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
+              displayName: '[Trivy] Scan Container Image With Trivy'
 
-          - task: Docker@2
-            displayName: 'Docker Logout'
-            inputs:
-              containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
-              command: 'logout'
+            - script: |
+                $(Agent.TempDirectory)/trivy_scanner/trivy image \
+                  --exit-code 0 \
+                  --format template \
+                  --output $(Agent.TempDirectory)/trivy-image-junit-report.xml \
+                  --template "@templates/junit-container-vulnerabilities-template.tpl" \
+                  $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
+              displayName: '[Trivy] Generating Container Scanning Junit Report'
 
-          - task: PublishTestResults@2
-            displayName: 'Publish Junit Test Results'
-            inputs:
-              testResultsFormat: 'JUnit'
-              testResultsFiles: '$(Agent.TempDirectory)/trivy-image-junit-report.xml'
-              mergeTestResults: true
-              failTaskOnFailedTests: false
-              testRunTitle: 'Trivy Container Vulnerabilities'
+            - task: Docker@2
+              displayName: 'Docker Logout'
+              inputs:
+                containerRegistry: $(CONTAINER_REGISTRY_SERVICE_CONNECTION_NAME)
+                command: 'logout'
+
+            - task: PublishTestResults@2
+              displayName: 'Publish Junit Test Results'
+              inputs:
+                testResultsFormat: 'JUnit'
+                testResultsFiles: '$(Agent.TempDirectory)/trivy-image-junit-report.xml'
+                mergeTestResults: true
+                failTaskOnFailedTests: false
+                testRunTitle: 'Trivy Container Vulnerabilities'
