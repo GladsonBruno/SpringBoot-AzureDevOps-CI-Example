@@ -74,8 +74,8 @@ stages:
               displayName: '[Trivy] Generating Container Vulnerabilities Junit Template'
 
           - script: |
-              $(Agent.TempDirectory)/trivy_scanner/trivy \
-                -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
+              cd $(Agent.TempDirectory)/trivy_scanner && ls -la
+              $(Agent.TempDirectory)/trivy_scanner/trivy -d image -f json -o $(Agent.TempDirectory)/image-scan-results.json $(CI_REGISTRY)/$(IMAGE_NAME):$(APPLICATION_VERSION)
             displayName: '[Trivy] Scan Container Image With Trivy'
 
           - script: |
