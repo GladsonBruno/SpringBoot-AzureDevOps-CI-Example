@@ -1,3 +1,9 @@
+trigger:
+  branches:
+    include:
+      - master
+      - develop
+
 variables:
   - group: springboot-ci-example
 
@@ -7,7 +13,7 @@ resources:
     type: github
     name: GladsonBruno/azure-template-pipelines
     endpoint: GladsonBruno
-    ref: 'refs/heads/develop'
+    ref: 'refs/heads/master'
 
 extends:
   template: /maven/azure-pipeline.yml@templates

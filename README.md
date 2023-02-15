@@ -9,4 +9,4 @@ Estará contemplado:
  * Code Coverage - OK
  * Build de container - OK
  * Teste de container - OK
- * Pipeline templatizada
+ * Pipeline templatizada - OK
